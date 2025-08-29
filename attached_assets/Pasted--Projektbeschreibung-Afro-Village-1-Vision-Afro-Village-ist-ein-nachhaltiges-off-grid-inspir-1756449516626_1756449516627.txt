@@ -1,0 +1,66 @@
+
+🌍 Projektbeschreibung: Afro Village
+
+1. Vision
+
+Afro Village ist ein nachhaltiges, off-grid inspiriertes Ökodorf und Kulturzentrum, das auf dem erfolgreichen Konzept von Camp Calma basiert. Während Camp Calma vor allem ein intimer Rückzugsort für kleine Gruppen ist, versteht sich Afro Village als skalierbares Modell für ganze Gemeinschaften, die nachhaltiges Leben, afrikanische Diaspora-Kultur, Kreativität und Bildung miteinander verbinden.
+
+Das Ziel ist es, ein lebendiges Dorf zu schaffen, das sowohl als Lebens- und Arbeitsraum dient als auch Besucher*innen, Lernende und Kreative aus aller Welt empfängt. Afro Village soll zu einem Leuchtturmprojekt für Off-Grid-Living in Europa werden, das ökologisches Wohnen, Community Building und kulturellen Austausch vereint.
+
+⸻
+
+2. Aufbau & Infrastruktur
+
+Afro Village ist modular geplant und wächst mit den Bedürfnissen seiner Bewohner*innen und Gäste:
+	•	Wohnmodule: Tiny Houses, A-Frames, Jurten und Mobilheime – je ausgestattet mit Solarstrom (Victron-Systeme), Pylontech-Batterien (skalierbar bis 48 kWh pro Einheit) und eigener Wasserversorgung.
+	•	Energieversorgung: Dezentrale Einheiten mit MultiPlus-II-Invertern (2×5000 oder 3×3000 pro Haus), koordiniert über ein Smart-Grid-System (Cerbo GX + Node-RED + MQTT). Ergänzt durch zentrale Solarfelder & Speichercluster.
+	•	Wasser & Permakultur: Brunnen, Osmoseanlagen, Regenwassernutzung sowie Permakultur-Gärten für Selbstversorgung.
+	•	Gemeinschaftsflächen:
+	•	Co-Creation Space (Coworking + Studio)
+	•	Afro Kitchen (kulinarische & musikalische Begegnungen)
+	•	Open-Air Arena für Musik, Tanz, Theater & Film
+	•	Retreat-Bereiche für Yoga, Heilung & Weiterbildung
+	•	Digitale Infrastruktur: Starlink-basiertes Internet, dezentrale NAS/Server, digitale Lernplattformen (Google Workspace, Classroom).
+
+⸻
+
+3. Programme & Inhalte
+
+Afro Village kombiniert Bildung, Kultur und nachhaltiges Leben in unterschiedlichen Formaten:
+	•	🎶 AfroBeats & Culture: Musik-Workshops, Tanz, Festivals, Austausch mit afrikanischen Künstler*innen.
+	•	🌱 Eco Living & Training: Praktische Ausbildung in Off-Grid-Technologien, Solar, Wasser, Permakultur.
+	•	📚 Afro Learning Hub: Digitale Bildungsprogramme für Jugendliche & Erwachsene (Emotionale Intelligenz, Finanzkompetenz, Digitale Skills).
+	•	🤝 Community Building: Residenzprogramme, NGO-Projekte, Kooperationen mit Diaspora-Netzwerken weltweit.
+	•	🎥 Creative Media Lab: Nutzung von KI, Drohnen & Filmtechnik zur Erstellung von immersiven Story-Erlebnissen (z. B. für Social Media, Dokumentationen, Games).
+
+⸻
+
+4. Zielgruppen
+	•	Internationale Besucher*innen: Retreats, Festivals, Workshops.
+	•	Diaspora-Communities: Afro-Europäerinnen, Kreative, Unternehmerinnen.
+	•	Studierende & Lernende: Praktika, Summer Schools, digitale Lernangebote.
+	•	Partner & NGOs: Kooperation mit Bildungs- und Entwicklungsorganisationen.
+
+⸻
+
+5. Skalierbarkeit & Wirkung
+
+Afro Village ist als Pilotprojekt in Portugal geplant, mit dem Ziel, das Konzept auf andere Länder (Afrika, Europa, Diaspora-Gemeinschaften) zu übertragen.
+	•	Sozial: Förderung von Diaspora-Communities, Empowerment von Jugendlichen.
+	•	Ökologisch: Autarke Infrastruktur, erneuerbare Energie, Permakultur.
+	•	Ökonomisch: Einnahmen durch Retreats, Events, Bildungsprogramme, Mitgliedschaften.
+	•	Digital: Open-Source-Wissenstransfer, hybride Lernmodelle.
+
+⸻
+
+6. Finanzierung & Nachhaltigkeit
+	•	Einnahmequellen: Retreats, Festivals, Bildungsprogramme, Memberships, Merchandising, NGO-Fördermittel.
+	•	Partnerschaften: Kooperation mit Universitäten, Künstler*innen, Diaspora-Organisationen, nachhaltigen Unternehmen.
+	•	Langfristige Vision: Afro Village als inklusives Modell-Dorf, das ökologisches Bauen, nachhaltige Energie und kulturellen Austausch weltweit inspiriert.
+
+⸻
+
+7. Story & Narrative (für Video/Präsentation)
+
+„Afro Village ist mehr als ein Ort – es ist eine Bewegung. Ein Dorf, in dem nachhaltiges Leben, afrikanische Kultur und moderne Technologien verschmelzen. Ein Raum, in dem Menschen lernen, feiern, erschaffen und gemeinsam Zukunft gestalten. Von Portugal aus hinaus in die Welt.“
+
