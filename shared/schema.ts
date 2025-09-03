@@ -35,7 +35,7 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
-  role: varchar("role").notNull().default("visitor"), // visitor, resident, educator, partner, admin
+  role: varchar("role").notNull().default("visitor"), // visitor, resident, educator, partner, admin, bisafoo_circle, golden_circle, founder
   bio: text("bio"),
   skills: text("skills").array(),
   interests: text("interests").array(),

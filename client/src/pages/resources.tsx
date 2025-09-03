@@ -147,7 +147,7 @@ export default function Resources() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-muted-foreground text-sm font-medium">Energy Independence</p>
-                <p className="text-2xl font-bold text-foreground" data-testid="text-energy-independence">94%</p>
+                <p className="text-2xl font-bold text-foreground" data-testid="text-energy-independence">100%</p>
                 <p className="text-secondary text-sm">Self-sufficient</p>
               </div>
               <div className="cultural-icon">
@@ -161,9 +161,9 @@ export default function Resources() {
           <div className="pattern-content p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-muted-foreground text-sm font-medium">Water Conservation</p>
-                <p className="text-2xl font-bold text-foreground" data-testid="text-water-conservation">78%</p>
-                <p className="text-blue-500 text-sm">Efficient use</p>
+                <p className="text-muted-foreground text-sm font-medium">Water Independence</p>
+                <p className="text-2xl font-bold text-foreground" data-testid="text-water-independence">100%</p>
+                <p className="text-blue-500 text-sm">Self-sufficient</p>
               </div>
               <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center">
                 <i className="fas fa-tint text-blue-500 text-xl"></i>
@@ -177,8 +177,8 @@ export default function Resources() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-muted-foreground text-sm font-medium">Food Production</p>
-                <p className="text-2xl font-bold text-foreground" data-testid="text-food-production">62%</p>
-                <p className="text-green-500 text-sm">Growing season</p>
+                <p className="text-2xl font-bold text-foreground" data-testid="text-food-production">5%</p>
+                <p className="text-green-500 text-sm">Early stage</p>
               </div>
               <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
                 <i className="fas fa-seedling text-green-500 text-xl"></i>
@@ -192,7 +192,7 @@ export default function Resources() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-muted-foreground text-sm font-medium">Connectivity</p>
-                <p className="text-2xl font-bold text-foreground" data-testid="text-connectivity">98%</p>
+                <p className="text-2xl font-bold text-foreground" data-testid="text-connectivity">99%</p>
                 <p className="text-purple-500 text-sm">High speed</p>
               </div>
               <div className="w-12 h-12 bg-purple-500/10 rounded-lg flex items-center justify-center">
@@ -236,24 +236,37 @@ export default function Resources() {
 
         <TabsContent value="energy" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-testid="section-energy-resources">
-            {energyResources.length > 0 ? (
-              energyResources.map((resource: any) => (
-                <ResourceCard key={resource.id} resource={resource} />
-              ))
-            ) : (
-              <div className="col-span-full text-center py-12" data-testid="text-no-energy-resources">
-                <div className="w-12 h-12 bg-secondary/10 rounded-lg flex items-center justify-center mx-auto mb-4">
-                  <i className="fas fa-solar-panel text-secondary text-xl"></i>
-                </div>
-                <h3 className="font-serif text-xl font-semibold text-foreground mb-2">
-                  No Energy Data
-                </h3>
-                <p className="text-muted-foreground">
-                  Energy resource monitoring is not available
-                </p>
-              </div>
-            )}
+            {energyResources.length > 0 && energyResources.map((resource: any) => (
+              <ResourceCard key={resource.id} resource={resource} />
+            ))}
           </div>
+          
+          {/* Victron Energy Monitoring System */}
+          <Card className="pattern-border">
+            <div className="pattern-content">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-secondary/10 rounded-lg flex items-center justify-center">
+                    <i className="fas fa-solar-panel text-secondary text-xl"></i>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-serif">Live Energy Monitoring</h3>
+                    <p className="text-sm text-muted-foreground">Real-time solar and battery system data</p>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <iframe 
+                  width="100%" 
+                  height="800" 
+                  src="https://vrm.victronenergy.com/installation/156972/embed/eb7d8f21"
+                  className="rounded-lg border"
+                  title="Victron Energy Monitoring"
+                  data-testid="iframe-victron-energy"
+                />
+              </CardContent>
+            </div>
+          </Card>
         </TabsContent>
 
         <TabsContent value="water" className="space-y-6">

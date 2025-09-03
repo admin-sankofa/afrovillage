@@ -13,6 +13,8 @@ import { Separator } from "@/components/ui/separator";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { z } from "zod";
 
 const profileSchema = z.object({
@@ -47,6 +49,9 @@ export default function Settings() {
   const { toast } = useToast();
   const [newSkill, setNewSkill] = useState("");
   const [newInterest, setNewInterest] = useState("");
+  const [profileImage, setProfileImage] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const profileForm = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
@@ -84,12 +89,28 @@ export default function Settings() {
     },
   });
 
+  const updateProfileMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof profileSchema>) => {
+      return await apiRequest("PATCH", "/api/user/profile", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      toast({
+        title: "Profile Updated",
+        description: "Your profile has been successfully updated.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Update Failed",
+        description: "Failed to update profile. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onProfileSubmit = (data: z.infer<typeof profileSchema>) => {
-    // TODO: Implement profile update API call
-    toast({
-      title: "Profile Updated",
-      description: "Your profile has been successfully updated.",
-    });
+    updateProfileMutation.mutate(data);
   };
 
   const onNotificationSubmit = (data: z.infer<typeof notificationSchema>) => {
@@ -170,6 +191,40 @@ export default function Settings() {
             <CardContent>
               <Form {...profileForm}>
                 <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-6">
+                  {/* Profile Picture Upload */}
+                  <div className="flex items-center space-x-4 mb-6">
+                    <div className="relative">
+                      <img 
+                        src={previewUrl || user?.profileImageUrl || "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100"}
+                        alt="Profile"
+                        className="w-20 h-20 rounded-full object-cover border-2 border-border"
+                        data-testid="img-profile-preview"
+                      />
+                    </div>
+                    <div>
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setProfileImage(file);
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              setPreviewUrl(reader.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        className="mb-2"
+                        data-testid="input-profile-picture"
+                      />
+                      <p className="text-sm text-muted-foreground">
+                        Upload a new profile picture (max 5MB)
+                      </p>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={profileForm.control}
@@ -230,6 +285,9 @@ export default function Settings() {
                             <SelectItem value="resident">Resident</SelectItem>
                             <SelectItem value="educator">Educator</SelectItem>
                             <SelectItem value="partner">Partner</SelectItem>
+                            <SelectItem value="bisafoo_circle">Bisafoo Circle</SelectItem>
+                            <SelectItem value="golden_circle">Golden Circle</SelectItem>
+                            <SelectItem value="founder">Founder</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />

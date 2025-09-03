@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
 
 const navigationItems = [
   {
@@ -43,13 +44,27 @@ const navigationItems = [
     icon: "fas fa-comments",
     label: "Messages",
     href: "/messages",
-    badge: 3,
   },
 ];
 
 export default function Sidebar() {
   const { user } = useAuth();
   const [location] = useLocation();
+
+  // Fetch unread message count
+  const { data: messages } = useQuery({
+    queryKey: ["/api/messages"],
+    enabled: !!user,
+  });
+
+  const { data: communityMessages } = useQuery({
+    queryKey: ["/api/messages/community"],
+    enabled: !!user,
+  });
+
+  // Calculate total unread messages (for now, assuming all fetched messages are unread)
+  const unreadCount = (Array.isArray(messages) ? messages.length : 0) + 
+                     (Array.isArray(communityMessages) ? communityMessages.length : 0);
 
   const handleLogout = () => {
     window.location.href = "/api/logout";
@@ -114,9 +129,9 @@ export default function Sidebar() {
                     <i className={`${item.icon} w-5`}></i>
                     <span>{item.label}</span>
                   </div>
-                  {item.badge && (
+                  {item.label === "Messages" && unreadCount > 0 && (
                     <span className="bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full" data-testid="badge-messages">
-                      {item.badge}
+                      {unreadCount}
                     </span>
                   )}
                 </button>

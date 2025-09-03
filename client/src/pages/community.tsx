@@ -8,6 +8,11 @@ import { useState } from "react";
 export default function Community() {
   const [searchTerm, setSearchTerm] = useState("");
 
+  // Fetch community stats
+  const { data: stats } = useQuery({
+    queryKey: ["/api/dashboard/stats"],
+  });
+
   // Mock community members data - in real app would fetch from API
   const { data: members, isLoading } = useQuery({
     queryKey: ["/api/community/members"],
@@ -100,7 +105,7 @@ export default function Community() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-2xl font-bold text-foreground" data-testid="text-total-members">148</p>
+                <p className="text-2xl font-bold text-foreground" data-testid="text-total-members">{stats?.totalMembers || "1"}</p>
                 <p className="text-sm text-muted-foreground">Total Members</p>
               </div>
               <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
