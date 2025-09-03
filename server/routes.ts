@@ -31,6 +31,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         role: req.body.role,
         skills: req.body.skills,
         interests: req.body.interests,
+        profileImageUrl: req.body.profileImageUrl,
       };
       const updatedUser = await storage.updateUser(userId, updateData);
       res.json(updatedUser);
@@ -48,6 +49,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching dashboard stats:", error);
       res.status(500).json({ message: "Failed to fetch dashboard stats" });
+    }
+  });
+
+  // Get community members
+  app.get('/api/community/members', async (req, res) => {
+    try {
+      const members = await storage.getCommunityMembers();
+      res.json(members);
+    } catch (error) {
+      console.error("Error fetching community members:", error);
+      res.status(500).json({ message: "Failed to fetch community members" });
     }
   });
 

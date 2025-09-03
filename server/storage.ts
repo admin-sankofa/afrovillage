@@ -41,6 +41,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUser(id: string, userData: Partial<User>): Promise<User>;
+  getCommunityMembers(): Promise<User[]>;
   
   // Event operations
   getEvents(): Promise<Event[]>;
@@ -473,6 +474,9 @@ export class DatabaseStorage implements IStorage {
     activeEvents: number;
     energyLevel: number;
     totalFunding: number;
+    newMembersThisMonth: number;
+    upcomingEvents: number;
+    fundingProgress: number;
   }> {
     const [memberCount] = await db
       .select({ count: sql<number>`count(*)` })
@@ -498,12 +502,45 @@ export class DatabaseStorage implements IStorage {
       .select({ total: sql<number>`sum(${donations.amount})` })
       .from(donations);
 
+    // Get new members this month
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    
+    const [newMembersCount] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(users)
+      .where(gte(users.createdAt, oneMonthAgo));
+
+    // Get upcoming events this weekend
+    const today = new Date();
+    const thisWeekend = new Date();
+    thisWeekend.setDate(today.getDate() + (6 - today.getDay())); // Next Saturday
+    
+    const [weekendEventCount] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(events)
+      .where(
+        and(
+          eq(events.status, "active"),
+          gte(events.startDate, today),
+          lte(events.startDate, thisWeekend)
+        )
+      );
+
     return {
       totalMembers: memberCount.count || 0,
       activeEvents: eventCount.count || 0,
       energyLevel: parseFloat(solarResource?.currentLevel || "0"),
       totalFunding: fundingSum.total || 0,
+      newMembersThisMonth: newMembersCount.count || 0,
+      upcomingEvents: weekendEventCount.count || 0,
+      fundingProgress: 0, // No active projects with goals currently
     };
+  }
+
+  async getCommunityMembers(): Promise<User[]> {
+    const allUsers = await db.select().from(users).orderBy(users.createdAt);
+    return allUsers;
   }
 }
 

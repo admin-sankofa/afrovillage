@@ -198,7 +198,7 @@ export default function Funding() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-muted-foreground text-sm font-medium">Community Impact</p>
-                <p className="text-2xl font-bold text-foreground" data-testid="text-community-impact">148</p>
+                <p className="text-2xl font-bold text-foreground" data-testid="text-community-impact">0</p>
                 <p className="text-secondary text-sm">Lives improved</p>
               </div>
               <div className="w-12 h-12 bg-secondary/10 rounded-lg flex items-center justify-center">

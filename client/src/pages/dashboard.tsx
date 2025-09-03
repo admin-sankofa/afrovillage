@@ -52,14 +52,14 @@ export default function Dashboard() {
         <StatsCard
           title="Community Members"
           value={stats?.totalMembers || 0}
-          subtitle="+12 this month"
+          subtitle={stats?.newMembersThisMonth ? `+${stats.newMembersThisMonth} this month` : "No new members"}
           icon="fas fa-users text-primary"
           iconBgColor="bg-primary/10"
         />
         <StatsCard
           title="Active Events"
           value={stats?.activeEvents || 0}
-          subtitle="3 this weekend"
+          subtitle={stats?.upcomingEvents ? `${stats.upcomingEvents} this weekend` : "No events scheduled"}
           icon="fas fa-calendar text-accent"
           iconBgColor="bg-accent/10"
         />
@@ -73,7 +73,7 @@ export default function Dashboard() {
         <StatsCard
           title="Projects Funded"
           value={`€${Math.round(stats?.totalFunding || 0).toLocaleString()}`}
-          subtitle="75% of goal"
+          subtitle={stats?.fundingProgress ? `${stats.fundingProgress}% of goal` : "No active funding"}
           icon="fas fa-hand-holding-heart text-primary"
           iconBgColor="bg-primary/10"
         />
