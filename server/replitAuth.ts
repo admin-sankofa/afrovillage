@@ -8,9 +8,12 @@ import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
-if (!process.env.REPLIT_DOMAINS) {
-  throw new Error("Environment variable REPLIT_DOMAINS not provided");
-}
+// Get domains from environment and add custom domains
+const envDomains = process.env.REPLIT_DOMAINS ? process.env.REPLIT_DOMAINS.split(",") : [];
+const customDomains = ["afro-village.replit.app", "afrovillage.sankofa-ngo.org"];
+const domains = [...envDomains, ...customDomains];
+
+console.log("Configured domains:", domains);
 
 const getOidcConfig = memoize(
   async () => {
@@ -84,8 +87,7 @@ export async function setupAuth(app: Express) {
     verified(null, user);
   };
 
-  for (const domain of process.env
-    .REPLIT_DOMAINS!.split(",")) {
+  for (const domain of domains) {
     const strategy = new Strategy(
       {
         name: `replitauth:${domain}`,
