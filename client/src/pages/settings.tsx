@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
+import { useQuery } from "@tanstack/react-query";
+import type { User } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,7 +47,13 @@ const privacySchema = z.object({
 });
 
 export default function Settings() {
-  const { user } = useSupabaseAuth();
+  const { user: authUser } = useSupabaseAuth();
+  
+  // Fetch custom user data from our database
+  const { data: user, isLoading: userLoading } = useQuery<User>({
+    queryKey: ["/api/auth/user"],
+    enabled: !!authUser, // Only fetch when authenticated
+  });
   const { toast } = useToast();
   const [newSkill, setNewSkill] = useState("");
   const [newInterest, setNewInterest] = useState("");
@@ -56,15 +64,30 @@ export default function Settings() {
   const profileForm = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      firstName: user?.firstName || "",
-      lastName: user?.lastName || "",
-      email: user?.email || "",
-      bio: user?.bio || "",
-      role: user?.role || "visitor",
-      skills: user?.skills || [],
-      interests: user?.interests || [],
+      firstName: "",
+      lastName: "",
+      email: "",
+      bio: "",
+      role: "visitor",
+      skills: [],
+      interests: [],
     },
   });
+
+  // Update form values when user data loads
+  useEffect(() => {
+    if (user) {
+      profileForm.reset({
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        email: user.email || "",
+        bio: user.bio || "",
+        role: user.role || "visitor",
+        skills: user.skills || [],
+        interests: user.interests || [],
+      });
+    }
+  }, [user, profileForm]);
 
   const notificationForm = useForm<z.infer<typeof notificationSchema>>({
     resolver: zodResolver(notificationSchema),
@@ -112,6 +135,15 @@ export default function Settings() {
   const onProfileSubmit = (data: z.infer<typeof profileSchema>) => {
     updateProfileMutation.mutate(data);
   };
+
+  // Show loading state while user data is being fetched
+  if (userLoading || !user) {
+    return (
+      <div className="p-6">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto" />
+      </div>
+    );
+  }
 
   const onNotificationSubmit = (data: z.infer<typeof notificationSchema>) => {
     // TODO: Implement notification preferences API call
