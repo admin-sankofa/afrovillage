@@ -5,6 +5,20 @@ import { verifySupabaseAuth } from "./supabaseAuth";
 import { insertEventSchema, insertCourseSchema, insertProjectSchema, insertDonationSchema, insertBookingSchema, insertArtistProfileSchema, insertMessageSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Debug endpoint to check test user credentials (development only)
+  app.get('/api/debug/test-user', async (req, res) => {
+    if (process.env.NODE_ENV !== 'development') {
+      return res.status(404).json({ message: 'Not found' });
+    }
+    
+    res.json({
+      TEST_AUTH_EMAIL: process.env.TEST_AUTH_EMAIL,
+      passwordLength: process.env.TEST_AUTH_PASSWORD?.length || 0,
+      supabaseUrl: process.env.VITE_SUPABASE_URL,
+      hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
+    });
+  });
+
   // Auth routes
   app.get('/api/auth/user', verifySupabaseAuth, async (req: any, res) => {
     try {
