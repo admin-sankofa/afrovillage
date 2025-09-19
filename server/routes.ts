@@ -35,12 +35,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/user/profile', verifySupabaseAuth, async (req: any, res) => {
     try {
       const userId = req.user.id;
+      // Whitelist allowed fields - NEVER allow role updates from client
       const updateData = {
         firstName: req.body.firstName,
         lastName: req.body.lastName,
         email: req.body.email,
         bio: req.body.bio,
-        role: req.body.role,
         skills: req.body.skills,
         interests: req.body.interests,
         profileImageUrl: req.body.profileImageUrl,
