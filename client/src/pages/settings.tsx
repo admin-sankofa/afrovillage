@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,7 +45,7 @@ const privacySchema = z.object({
 });
 
 export default function Settings() {
-  const { user } = useAuth();
+  const { user } = useSupabaseAuth();
   const { toast } = useToast();
   const [newSkill, setNewSkill] = useState("");
   const [newInterest, setNewInterest] = useState("");

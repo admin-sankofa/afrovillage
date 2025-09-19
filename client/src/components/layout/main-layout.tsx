@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 import { useToast } from "@/hooks/use-toast";
 import Sidebar from "./sidebar";
 import Header from "./header";
@@ -10,7 +10,7 @@ interface MainLayoutProps {
 
 export default function MainLayout({ children }: MainLayoutProps) {
   const { toast } = useToast();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading } = useSupabaseAuth();
 
   // Redirect to home if not authenticated
   useEffect(() => {
@@ -20,9 +20,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
         description: "You are logged out. Logging in again...",
         variant: "destructive",
       });
-      setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
+      // User will be redirected to login form automatically by App.tsx routing
       return;
     }
   }, [isAuthenticated, isLoading, toast]);

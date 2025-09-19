@@ -12,14 +12,14 @@ import { insertMessageSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
-import { useAuth } from "@/hooks/useAuth";
+import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 import { z } from "zod";
 
 export default function Messages() {
   const [newCommunityMessage, setNewCommunityMessage] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user } = useSupabaseAuth();
 
   const { data: personalMessages, isLoading: personalLoading } = useQuery({
     queryKey: ["/api/messages"],

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/useAuth";
+import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 import StatsCard from "@/components/dashboard/stats-card";
 import EventCard from "@/components/dashboard/event-card";
 import CourseProgress from "@/components/dashboard/course-progress";
@@ -10,7 +10,7 @@ import ChatPreview from "@/components/dashboard/chat-preview";
 import { Button } from "@/components/ui/button";
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user } = useSupabaseAuth();
 
   const { data: stats } = useQuery({
     queryKey: ["/api/dashboard/stats"],
