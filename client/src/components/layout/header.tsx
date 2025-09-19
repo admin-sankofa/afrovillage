@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 import { Button } from "@/components/ui/button";
 
 export default function Header() {
-  const { user } = useAuth();
+  const { user } = useSupabaseAuth();
   const [isDark, setIsDark] = useState(false);
 
   const toggleTheme = () => {

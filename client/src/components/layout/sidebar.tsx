@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { useAuth } from "@/hooks/useAuth";
+import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -48,7 +48,7 @@ const navigationItems = [
 ];
 
 export default function Sidebar() {
-  const { user } = useAuth();
+  const { user, signOut } = useSupabaseAuth();
   const [location] = useLocation();
 
   // Fetch unread message count
@@ -66,8 +66,12 @@ export default function Sidebar() {
   const unreadCount = (Array.isArray(messages) ? messages.length : 0) + 
                      (Array.isArray(communityMessages) ? communityMessages.length : 0);
 
-  const handleLogout = () => {
-    window.location.href = "/api/logout";
+  const handleLogout = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
   };
 
   return (

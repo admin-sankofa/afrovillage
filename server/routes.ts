@@ -1,17 +1,14 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { verifySupabaseAuth } from "./supabaseAuth";
 import { insertEventSchema, insertCourseSchema, insertProjectSchema, insertDonationSchema, insertBookingSchema, insertArtistProfileSchema, insertMessageSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth middleware
-  await setupAuth(app);
-
   // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  app.get('/api/auth/user', verifySupabaseAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {
@@ -20,9 +17,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/user/profile', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/user/profile', verifySupabaseAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const updateData = {
         firstName: req.body.firstName,
         lastName: req.body.lastName,
@@ -42,7 +39,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dashboard stats
-  app.get('/api/dashboard/stats', isAuthenticated, async (req, res) => {
+  app.get('/api/dashboard/stats', verifySupabaseAuth, async (req, res) => {
     try {
       const stats = await storage.getDashboardStats();
       res.json(stats);
@@ -87,11 +84,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/events', isAuthenticated, async (req: any, res) => {
+  app.post('/api/events', verifySupabaseAuth, async (req: any, res) => {
     try {
       const eventData = insertEventSchema.parse({
         ...req.body,
-        organizerId: req.user.claims.sub,
+        organizerId: req.user.id,
       });
       const event = await storage.createEvent(eventData);
       res.json(event);
@@ -101,11 +98,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/events/:id/register', isAuthenticated, async (req: any, res) => {
+  app.post('/api/events/:id/register', verifySupabaseAuth, async (req: any, res) => {
     try {
       const registration = await storage.registerForEvent(
         req.params.id,
-        req.user.claims.sub
+        req.user.id
       );
       res.json(registration);
     } catch (error) {
@@ -138,11 +135,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/courses', isAuthenticated, async (req: any, res) => {
+  app.post('/api/courses', verifySupabaseAuth, async (req: any, res) => {
     try {
       const courseData = insertCourseSchema.parse({
         ...req.body,
-        instructorId: req.user.claims.sub,
+        instructorId: req.user.id,
       });
       const course = await storage.createCourse(courseData);
       res.json(course);
@@ -152,11 +149,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/courses/:id/enroll', isAuthenticated, async (req: any, res) => {
+  app.post('/api/courses/:id/enroll', verifySupabaseAuth, async (req: any, res) => {
     try {
       const enrollment = await storage.enrollInCourse(
         req.params.id,
-        req.user.claims.sub
+        req.user.id
       );
       res.json(enrollment);
     } catch (error) {
@@ -165,7 +162,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/user/enrollments', isAuthenticated, async (req: any, res) => {
+  app.get('/api/user/enrollments', verifySupabaseAuth, async (req: any, res) => {
     try {
       const enrollments = await storage.getUserCourseEnrollments(req.user.claims.sub);
       res.json(enrollments);
@@ -186,11 +183,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/projects', isAuthenticated, async (req: any, res) => {
+  app.post('/api/projects', verifySupabaseAuth, async (req: any, res) => {
     try {
       const projectData = insertProjectSchema.parse({
         ...req.body,
-        creatorId: req.user.claims.sub,
+        creatorId: req.user.id,
       });
       const project = await storage.createProject(projectData);
       res.json(project);
@@ -200,12 +197,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/projects/:id/donate', isAuthenticated, async (req: any, res) => {
+  app.post('/api/projects/:id/donate', verifySupabaseAuth, async (req: any, res) => {
     try {
       const donationData = insertDonationSchema.parse({
         ...req.body,
         projectId: req.params.id,
-        userId: req.user.claims.sub,
+        userId: req.user.id,
       });
       const donation = await storage.createDonation(donationData);
       res.json(donation);
@@ -226,11 +223,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/bookings', isAuthenticated, async (req: any, res) => {
+  app.post('/api/bookings', verifySupabaseAuth, async (req: any, res) => {
     try {
       const bookingData = insertBookingSchema.parse({
         ...req.body,
-        userId: req.user.claims.sub,
+        userId: req.user.id,
       });
       
       // Check availability first
@@ -252,7 +249,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/user/bookings', isAuthenticated, async (req: any, res) => {
+  app.get('/api/user/bookings', verifySupabaseAuth, async (req: any, res) => {
     try {
       const bookings = await storage.getUserBookings(req.user.claims.sub);
       res.json(bookings);
@@ -273,11 +270,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/artist-profile', isAuthenticated, async (req: any, res) => {
+  app.post('/api/artist-profile', verifySupabaseAuth, async (req: any, res) => {
     try {
       const profileData = insertArtistProfileSchema.parse({
         ...req.body,
-        userId: req.user.claims.sub,
+        userId: req.user.id,
       });
       const profile = await storage.createArtistProfile(profileData);
       res.json(profile);
@@ -298,7 +295,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/messages', isAuthenticated, async (req: any, res) => {
+  app.get('/api/messages', verifySupabaseAuth, async (req: any, res) => {
     try {
       const messages = await storage.getMessages(req.user.claims.sub);
       res.json(messages);
@@ -308,7 +305,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/messages', isAuthenticated, async (req: any, res) => {
+  app.post('/api/messages', verifySupabaseAuth, async (req: any, res) => {
     try {
       const messageData = insertMessageSchema.parse({
         ...req.body,
