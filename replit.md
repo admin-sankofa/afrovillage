@@ -31,10 +31,10 @@ Preferred communication style: Simple, everyday language.
 - **Flexible Metadata**: JSONB fields for extensible resource monitoring and project metadata
 
 ### Authentication & Authorization
-- **Provider**: Replit OpenID Connect (OIDC) integration
-- **Session Storage**: PostgreSQL-backed session store with configurable TTL
+- **Provider**: JWT (JSON Web Token) authentication with 3600-second expiry
+- **Token Management**: Secure JWT generation using HS256 algorithm with JWT_SECRET
 - **Role-Based Access**: User roles including visitor, resident, educator, partner, and admin
-- **Security**: HTTP-only cookies, CSRF protection, and secure session configuration
+- **Security**: Bearer token authentication, secure middleware validation, and environment-based test login protection
 
 ### Resource Management System
 - **Off-Grid Monitoring**: Real-time tracking of solar energy, water levels, food production, and internet connectivity
@@ -58,8 +58,8 @@ Preferred communication style: Simple, everyday language.
 - **WebSocket Support**: Real-time database connections using ws library for Neon compatibility
 
 ### Authentication Services
-- **Replit Auth**: OpenID Connect authentication provider with automatic user provisioning
-- **Session Management**: PostgreSQL session storage with automatic cleanup and TTL management
+- **JWT Authentication**: Custom JWT token-based authentication with secure secret management
+- **User Management**: PostgreSQL user storage with email-based lookup and user profile management
 
 ### Development Tools
 - **Vite**: Fast build tool and development server with React plugin support
