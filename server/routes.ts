@@ -22,6 +22,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // JWT Authentication routes
   app.post('/api/auth/login', async (req, res) => {
     try {
+      // Only allow test login in development environment
+      if (process.env.NODE_ENV !== 'development') {
+        return res.status(404).json({ message: 'Endpoint not available' });
+      }
+
       const { email, password } = req.body;
       
       if (!email || !password) {
@@ -52,8 +57,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const token = generateJWTToken({
         id: user.id,
         email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
         role: user.role,
       });
 
@@ -62,8 +67,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         user: {
           id: user.id,
           email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
+          firstName: user.firstName || '',
+          lastName: user.lastName || '',
           role: user.role,
         },
         expiresIn: 3600,
@@ -106,8 +111,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const token = generateJWTToken({
         id: user.id,
         email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
         role: user.role,
       });
 
@@ -116,8 +121,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         user: {
           id: user.id,
           email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
+          firstName: user.firstName || '',
+          lastName: user.lastName || '',
           role: user.role,
         },
         expiresIn: 3600,
@@ -287,7 +292,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/user/enrollments', verifyJWTAuth, async (req: any, res) => {
     try {
-      const enrollments = await storage.getUserCourseEnrollments(req.user.claims.sub);
+      const enrollments = await storage.getUserCourseEnrollments(req.user.id);
       res.json(enrollments);
     } catch (error) {
       console.error("Error fetching enrollments:", error);
@@ -374,7 +379,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/user/bookings', verifyJWTAuth, async (req: any, res) => {
     try {
-      const bookings = await storage.getUserBookings(req.user.claims.sub);
+      const bookings = await storage.getUserBookings(req.user.id);
       res.json(bookings);
     } catch (error) {
       console.error("Error fetching bookings:", error);
@@ -420,7 +425,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/messages', verifyJWTAuth, async (req: any, res) => {
     try {
-      const messages = await storage.getMessages(req.user.claims.sub);
+      const messages = await storage.getMessages(req.user.id);
       res.json(messages);
     } catch (error) {
       console.error("Error fetching messages:", error);
@@ -432,7 +437,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const messageData = insertMessageSchema.parse({
         ...req.body,
-        senderId: req.user.claims.sub,
+        senderId: req.user.id,
       });
       const message = await storage.sendMessage(messageData);
       res.json(message);
