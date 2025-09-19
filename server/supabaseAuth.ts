@@ -14,7 +14,15 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 export const verifySupabaseAuth = async (req: any, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization
   
+  console.log('Auth verification attempt:', {
+    hasAuthHeader: !!authHeader,
+    authHeaderStart: authHeader ? authHeader.substring(0, 20) + '...' : 'none',
+    url: req.url,
+    method: req.method
+  });
+  
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.log('Auth failed: No valid authorization header');
     return res.status(401).json({ message: 'Unauthorized - No token provided' })
   }
 
@@ -23,7 +31,15 @@ export const verifySupabaseAuth = async (req: any, res: Response, next: NextFunc
   try {
     const { data: { user }, error } = await supabase.auth.getUser(token)
     
+    console.log('Supabase auth result:', {
+      hasUser: !!user,
+      userId: user?.id,
+      userEmail: user?.email,
+      error: error?.message
+    });
+    
     if (error || !user) {
+      console.log('Auth failed: Invalid token or user not found', error);
       return res.status(401).json({ message: 'Unauthorized - Invalid token' })
     }
 
