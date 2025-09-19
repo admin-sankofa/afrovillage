@@ -50,9 +50,11 @@ export default function Settings() {
   const { user: authUser } = useSupabaseAuth();
   
   // Fetch custom user data from our database
-  const { data: user, isLoading: userLoading } = useQuery<User>({
+  const { data: user, isLoading: userLoading, error: userError } = useQuery<User>({
     queryKey: ["/api/auth/user"],
     enabled: !!authUser, // Only fetch when authenticated
+    retry: 1, // Only retry once
+    staleTime: 0, // Always refetch
   });
   const { toast } = useToast();
   const [newSkill, setNewSkill] = useState("");
@@ -137,10 +139,39 @@ export default function Settings() {
   };
 
   // Show loading state while user data is being fetched
-  if (userLoading || !user) {
+  if (userLoading) {
     return (
       <div className="p-6">
         <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto" />
+        <p className="text-center mt-4 text-muted-foreground">Loading your profile...</p>
+      </div>
+    );
+  }
+
+  // Show error state if user data failed to load
+  if (userError) {
+    return (
+      <div className="p-6">
+        <div className="text-center">
+          <p className="text-destructive mb-4">Failed to load profile data</p>
+          <Button onClick={() => window.location.reload()}>
+            Refresh Page
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // If no user data but not loading, show a fallback
+  if (!user) {
+    return (
+      <div className="p-6">
+        <div className="text-center">
+          <p className="text-muted-foreground mb-4">No profile data available</p>
+          <Button onClick={() => window.location.reload()}>
+            Refresh Page
+          </Button>
+        </div>
       </div>
     );
   }
