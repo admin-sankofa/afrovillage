@@ -150,10 +150,22 @@ export default function Settings() {
 
   // Show error state if user data failed to load
   if (userError) {
+    console.error('User data query error:', userError);
     return (
       <div className="p-6">
         <div className="text-center">
           <p className="text-destructive mb-4">Failed to load profile data</p>
+          <details className="mb-4 text-sm text-left">
+            <summary className="cursor-pointer text-muted-foreground">Show error details</summary>
+            <pre className="mt-2 p-2 bg-muted rounded text-xs overflow-auto">
+              {JSON.stringify({ 
+                message: userError?.message || 'Unknown error',
+                authUser: !!authUser,
+                authUserId: authUser?.id,
+                authUserEmail: authUser?.email
+              }, null, 2)}
+            </pre>
+          </details>
           <Button onClick={() => window.location.reload()}>
             Refresh Page
           </Button>
