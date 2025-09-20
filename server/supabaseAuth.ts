@@ -1,39 +1,30 @@
 import type { NextFunction, Request, Response } from 'express';
-import jwt, { type JwtHeader, type JwtPayload, type VerifyErrors } from 'jsonwebtoken';
-import jwksClient from 'jwks-rsa';
+import {
+  createRemoteJWKSet,
+  jwtVerify,
+  errors as joseErrors,
+  type JWTPayload,
+} from 'jose';
 import type { UpsertUser } from '@shared/schema';
 import { storage } from './storage';
 
-const rawSupabaseUrl = (process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? '').replace(/\/$/, '');
-const SUPABASE_URL = rawSupabaseUrl || undefined;
-const SUPABASE_JWKS_URL = (process.env.SUPABASE_JWKS_URL ?? (SUPABASE_URL ? `${SUPABASE_URL}/auth/v1/keys` : undefined))?.replace(/\/$/, '');
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_ANON_KEY;
-
-if (!SUPABASE_URL) {
+const rawSupabaseUrl = (process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? '').replace(/\/+$/, '');
+if (!rawSupabaseUrl) {
   throw new Error('Missing SUPABASE_URL environment variable.');
 }
 
-if (!SUPABASE_JWKS_URL) {
-  throw new Error('Missing SUPABASE_JWKS_URL environment variable.');
-}
+const SUPABASE_URL = rawSupabaseUrl;
+const DEFAULT_JWKS_URL = `${SUPABASE_URL}/auth/v1/.well-known/jwks.json`;
+const SUPABASE_JWKS_URL = (process.env.SUPABASE_JWKS_URL ?? DEFAULT_JWKS_URL).replace(/\/+$/, '');
+const SUPABASE_ISSUER = `${SUPABASE_URL}/auth/v1`;
 
-if (!SUPABASE_ANON_KEY) {
-  throw new Error('Missing SUPABASE_ANON_KEY environment variable.');
-}
-
-const jwks = jwksClient({
-  cache: true,
-  cacheMaxEntries: 5,
-  cacheMaxAge: 10 * 60 * 1000, // 10 minutes
-  rateLimit: true,
-  jwksUri: SUPABASE_JWKS_URL,
-  timeout: 5000,
-  requestHeaders: {
-    apikey: SUPABASE_ANON_KEY,
-  },
+const jwksUrlInstance = new URL(SUPABASE_JWKS_URL);
+const JWKS = createRemoteJWKSet(jwksUrlInstance, {
+  cooldownDuration: 10 * 60 * 1000,
+  timeoutDuration: 5000,
 });
 
-type VerifiedSupabaseClaims = JwtPayload & {
+type VerifiedSupabaseClaims = JWTPayload & {
   sub: string;
   email?: string;
   role?: string;
@@ -41,77 +32,36 @@ type VerifiedSupabaseClaims = JwtPayload & {
   app_metadata?: Record<string, unknown>;
 };
 
-function getSigningKey(header: JwtHeader): Promise<string> {
-  return new Promise((resolve, reject) => {
-    if (!header.kid) {
-      reject(new Error('missing_kid'));
-      return;
-    }
-
-    jwks.getSigningKey(header.kid, (err, key) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-
-      const signingKey = key?.getPublicKey?.();
-      if (!signingKey) {
-        reject(new Error('missing_public_key'));
-        return;
-      }
-
-      resolve(signingKey);
-    });
-  });
-}
-
-async function verifyJwt(token: string): Promise<VerifiedSupabaseClaims> {
-  const decoded = await new Promise<VerifiedSupabaseClaims>((resolve, reject) => {
-    jwt.verify(
-      token,
-      async (header, callback) => {
-        try {
-          const key = await getSigningKey(header);
-          callback(null, key);
-        } catch (err) {
-          callback(err as VerifyErrors);
-        }
-      },
-      {
-        algorithms: ['RS256'],
-      },
-      (error, payload) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-
-        resolve(payload as VerifiedSupabaseClaims);
-      },
-    );
-  });
-
-  return decoded;
-}
-
-function mapJwtError(error: VerifyErrors | Error) {
-  switch (error.name) {
-    case 'TokenExpiredError':
-      return { status: 401, message: 'Unauthorized - Token expired', reason: 'token_expired' as const };
-    case 'JsonWebTokenError':
-      return { status: 401, message: 'Unauthorized - Invalid token signature', reason: 'invalid_signature' as const };
-    case 'NotBeforeError':
-      return { status: 401, message: 'Unauthorized - Token not yet active', reason: 'token_not_active' as const };
-    case 'JwksError':
-    case 'SigningKeyNotFoundError':
-      return { status: 401, message: 'Unauthorized - Unable to fetch signing keys', reason: 'jwks_fetch_error' as const };
-    default:
-      if (error.message === 'missing_kid' || error.message === 'missing_public_key') {
-        return { status: 401, message: 'Unauthorized - Invalid token header', reason: 'invalid_token_header' as const };
-      }
-
-      return { status: 401, message: 'Unauthorized - Auth verification failed', reason: 'auth_verification_failed' as const };
+function mapJoseError(error: unknown) {
+  if (error instanceof joseErrors.JWTExpired) {
+    return { status: 401, message: 'Unauthorized - Token expired', reason: 'token_expired' as const };
   }
+
+  if (error instanceof joseErrors.JWSSignatureVerificationFailed || error instanceof joseErrors.JWKSNoMatchingKey) {
+    return { status: 401, message: 'Unauthorized - Invalid token signature', reason: 'invalid_signature' as const };
+  }
+
+  if (error instanceof joseErrors.JWTClaimValidationFailed) {
+    return { status: 401, message: 'Unauthorized - Invalid token claims', reason: 'invalid_claims' as const };
+  }
+
+  if (error instanceof joseErrors.JWTNotBefore) {
+    return { status: 401, message: 'Unauthorized - Token not yet active', reason: 'token_not_active' as const };
+  }
+
+  if (error instanceof joseErrors.JWTInvalid || error instanceof joseErrors.JWSInvalid) {
+    return { status: 401, message: 'Unauthorized - Malformed token', reason: 'malformed_token' as const };
+  }
+
+  if (error instanceof joseErrors.JOSEError) {
+    return { status: 401, message: 'Unauthorized - Auth verification failed', reason: 'auth_verification_failed' as const };
+  }
+
+  if (error instanceof Error && (error.name === 'AbortError' || error.name === 'TypeError')) {
+    return { status: 401, message: 'Unauthorized - Unable to fetch signing keys', reason: 'jwks_fetch_error' as const };
+  }
+
+  return { status: 401, message: 'Unauthorized - Auth verification failed', reason: 'auth_verification_failed' as const };
 }
 
 const reasonHints: Record<string, string> = {
@@ -119,9 +69,10 @@ const reasonHints: Record<string, string> = {
   invalid_payload: 'Supabase token payload is missing required claims.',
   token_expired: 'Supabase session expired; refresh the session.',
   token_not_active: 'Token is not yet valid; check system clock drift.',
-  invalid_signature: 'Token signature rejected; confirm project keys and service URLs.',
-  jwks_fetch_error: 'Unable to fetch JWKS. Verify SUPABASE_JWKS_URL, anon key header, and network access.',
-  invalid_token_header: 'Token header missing kid/public key. Ensure a Supabase-issued JWT is used.',
+  invalid_signature: 'Token signature rejected; confirm Supabase project keys and URLs.',
+  jwks_fetch_error: 'Unable to fetch JWKS. Verify SUPABASE_URL, network access, and JWKS endpoint availability.',
+  invalid_claims: 'Supabase token claims failed validation; ensure issuer/audience match.',
+  malformed_token: 'Token is malformed or corrupt; request a fresh Supabase session.',
   auth_verification_failed: 'Unexpected verification failure; check server logs for details.',
 };
 
@@ -149,7 +100,12 @@ export const verifySupabaseAuth = async (req: Request, res: Response, next: Next
       return deny(res, req, 'missing_header', 'Unauthorized - Missing bearer token');
     }
 
-    const decoded = await verifyJwt(token);
+    const { payload, protectedHeader } = await jwtVerify(token, JWKS, {
+      issuer: SUPABASE_ISSUER,
+      algorithms: ['ES256', 'RS256'],
+    });
+
+    const decoded = payload as VerifiedSupabaseClaims;
 
     if (!decoded?.sub) {
       return deny(res, req, 'invalid_payload', 'Unauthorized - Invalid token payload');
@@ -161,6 +117,7 @@ export const verifySupabaseAuth = async (req: Request, res: Response, next: Next
       method: req.method,
       sub: decoded.sub,
       expIn: decoded.exp ? decoded.exp - Math.floor(Date.now() / 1000) : undefined,
+      alg: protectedHeader.alg,
     });
 
     const userMetadata = (decoded.user_metadata ?? {}) as Record<string, unknown>;
@@ -188,22 +145,29 @@ export const verifySupabaseAuth = async (req: Request, res: Response, next: Next
 
     await storage.upsertUser(upsertPayload);
 
+    const role = typeof decoded.role === 'string' ? decoded.role : 'authenticated';
+
     (req as any).user = {
       id: decoded.sub,
       email: decoded.email,
-      role: decoded.role ?? 'authenticated',
+      role,
+      header: protectedHeader,
     };
 
     (req as any).auth = {
       sub: decoded.sub,
       email: decoded.email,
       exp: decoded.exp,
-      role: decoded.role,
+      role,
+      alg: protectedHeader.alg,
+      kid: protectedHeader.kid,
     };
+
+    (req as any).jwtHeader = protectedHeader;
 
     return next();
   } catch (error) {
-    const mapped = mapJwtError(error as VerifyErrors | Error);
+    const mapped = mapJoseError(error);
     console.warn('Supabase auth verification failed', {
       path: req.originalUrl,
       method: req.method,
@@ -220,9 +184,6 @@ export async function checkSupabaseKeys() {
 
   try {
     const response = await fetch(SUPABASE_JWKS_URL, {
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-      },
       signal: controller.signal,
     });
 
@@ -243,4 +204,5 @@ export async function checkSupabaseKeys() {
 export const SUPABASE_CONFIG = {
   url: SUPABASE_URL,
   jwksUrl: SUPABASE_JWKS_URL,
+  issuer: SUPABASE_ISSUER,
 };

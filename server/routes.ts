@@ -16,6 +16,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(500).json({ ok: false, status: 0, text: message });
       }
     });
+
+    app.get('/__auth/whoami', verifySupabaseAuth, (req: any, res) => {
+      const header = req.jwtHeader ?? {};
+      res.json({
+        uid: req.user?.id ?? null,
+        email: req.user?.email ?? null,
+        alg: header.alg ?? null,
+        kid: header.kid ?? null,
+      });
+    });
   }
 
   // Auth routes
