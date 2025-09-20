@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { isUnauthorizedError } from "@/lib/authUtils";
+import { getUnauthorizedReason, isUnauthorizedError } from "@/lib/authUtils";
 
 export default function Learning() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -38,14 +38,14 @@ export default function Learning() {
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
+        const reason = getUnauthorizedReason(error);
         toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
+          title: reason === 'token_expired' ? 'Session abgelaufen' : 'Keine Berechtigung',
+          description: reason === 'token_expired'
+            ? 'Bitte melde dich erneut an, um Kurse zu belegen.'
+            : 'Diese Aktion erfordert eine aktive Anmeldung.',
+          variant: 'destructive',
         });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
         return;
       }
       toast({

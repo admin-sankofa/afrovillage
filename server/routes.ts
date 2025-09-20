@@ -1,140 +1,12 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { verifyJWTAuth, generateJWTToken } from "./jwtAuth";
+import { verifySupabaseAuth } from "./supabaseAuth";
 import { insertEventSchema, insertCourseSchema, insertProjectSchema, insertDonationSchema, insertBookingSchema, insertArtistProfileSchema, insertMessageSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Debug endpoint to check test user credentials (development only)
-  app.get('/api/debug/test-user', async (req, res) => {
-    if (process.env.NODE_ENV !== 'development') {
-      return res.status(404).json({ message: 'Not found' });
-    }
-    
-    res.json({
-      TEST_AUTH_EMAIL: process.env.TEST_AUTH_EMAIL,
-      passwordLength: process.env.TEST_AUTH_PASSWORD?.length || 0,
-      supabaseUrl: process.env.VITE_SUPABASE_URL,
-      hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
-    });
-  });
-
-  // JWT Authentication routes
-  app.post('/api/auth/login', async (req, res) => {
-    try {
-      // Only allow test login in development environment
-      if (process.env.NODE_ENV !== 'development') {
-        return res.status(404).json({ message: 'Endpoint not available' });
-      }
-
-      const { email, password } = req.body;
-      
-      if (!email || !password) {
-        return res.status(400).json({ message: 'Email and password are required' });
-      }
-
-      // For now, authenticate against test user or implement your auth logic
-      const isTestUser = email === process.env.TEST_AUTH_EMAIL && password === process.env.TEST_AUTH_PASSWORD;
-      
-      if (!isTestUser) {
-        return res.status(401).json({ message: 'Invalid credentials' });
-      }
-
-      // Get or create user in database
-      let user = await storage.getUserByEmail(email);
-      if (!user) {
-        // Create user if doesn't exist
-        user = await storage.upsertUser({
-          id: 'test-user-jwt-' + Date.now(),
-          email: email,
-          firstName: 'Test',
-          lastName: 'User',
-          role: 'visitor',
-        });
-      }
-
-      // Generate JWT token
-      const token = generateJWTToken({
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        role: user.role,
-      });
-
-      res.json({
-        token,
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName || '',
-          lastName: user.lastName || '',
-          role: user.role,
-        },
-        expiresIn: 3600,
-      });
-    } catch (error) {
-      console.error('Login error:', error);
-      res.status(500).json({ message: 'Login failed' });
-    }
-  });
-
-  app.post('/api/auth/google', async (req, res) => {
-    try {
-      const { email, firstName, lastName, profileImageUrl } = req.body;
-      
-      if (!email) {
-        return res.status(400).json({ message: 'Email is required' });
-      }
-
-      // Get or create user in database
-      let user = await storage.getUserByEmail(email);
-      if (!user) {
-        user = await storage.upsertUser({
-          id: 'google-user-' + Date.now(),
-          email: email,
-          firstName: firstName || '',
-          lastName: lastName || '',
-          profileImageUrl: profileImageUrl || '',
-          role: 'visitor',
-        });
-      } else {
-        // Update user info
-        user = await storage.updateUser(user.id, {
-          firstName: firstName || user.firstName,
-          lastName: lastName || user.lastName,
-          profileImageUrl: profileImageUrl || user.profileImageUrl,
-        });
-      }
-
-      // Generate JWT token
-      const token = generateJWTToken({
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        role: user.role,
-      });
-
-      res.json({
-        token,
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName || '',
-          lastName: user.lastName || '',
-          role: user.role,
-        },
-        expiresIn: 3600,
-      });
-    } catch (error) {
-      console.error('Google auth error:', error);
-      res.status(500).json({ message: 'Google authentication failed' });
-    }
-  });
-
   // Auth routes
-  app.get('/api/auth/user', verifyJWTAuth, async (req: any, res) => {
+  app.get('/api/auth/user', verifySupabaseAuth, async (req: any, res) => {
     try {
       const userId = req.user.id;
       const user = await storage.getUser(userId);
@@ -145,7 +17,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/user/profile', verifyJWTAuth, async (req: any, res) => {
+  app.patch('/api/user/profile', verifySupabaseAuth, async (req: any, res) => {
     try {
       const userId = req.user.id;
       const updateData = {
@@ -167,7 +39,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dashboard stats
-  app.get('/api/dashboard/stats', verifyJWTAuth, async (req, res) => {
+  app.get('/api/dashboard/stats', verifySupabaseAuth, async (req, res) => {
     try {
       const stats = await storage.getDashboardStats();
       res.json(stats);
@@ -212,7 +84,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/events', verifyJWTAuth, async (req: any, res) => {
+  app.post('/api/events', verifySupabaseAuth, async (req: any, res) => {
     try {
       const eventData = insertEventSchema.parse({
         ...req.body,
@@ -226,7 +98,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/events/:id/register', verifyJWTAuth, async (req: any, res) => {
+  app.post('/api/events/:id/register', verifySupabaseAuth, async (req: any, res) => {
     try {
       const registration = await storage.registerForEvent(
         req.params.id,
@@ -263,7 +135,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/courses', verifyJWTAuth, async (req: any, res) => {
+  app.post('/api/courses', verifySupabaseAuth, async (req: any, res) => {
     try {
       const courseData = insertCourseSchema.parse({
         ...req.body,
@@ -277,7 +149,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/courses/:id/enroll', verifyJWTAuth, async (req: any, res) => {
+  app.post('/api/courses/:id/enroll', verifySupabaseAuth, async (req: any, res) => {
     try {
       const enrollment = await storage.enrollInCourse(
         req.params.id,
@@ -290,7 +162,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/user/enrollments', verifyJWTAuth, async (req: any, res) => {
+  app.get('/api/user/enrollments', verifySupabaseAuth, async (req: any, res) => {
     try {
       const enrollments = await storage.getUserCourseEnrollments(req.user.id);
       res.json(enrollments);
@@ -311,7 +183,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/projects', verifyJWTAuth, async (req: any, res) => {
+  app.post('/api/projects', verifySupabaseAuth, async (req: any, res) => {
     try {
       const projectData = insertProjectSchema.parse({
         ...req.body,
@@ -325,7 +197,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/projects/:id/donate', verifyJWTAuth, async (req: any, res) => {
+  app.post('/api/projects/:id/donate', verifySupabaseAuth, async (req: any, res) => {
     try {
       const donationData = insertDonationSchema.parse({
         ...req.body,
@@ -351,7 +223,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/bookings', verifyJWTAuth, async (req: any, res) => {
+  app.post('/api/bookings', verifySupabaseAuth, async (req: any, res) => {
     try {
       const bookingData = insertBookingSchema.parse({
         ...req.body,
@@ -377,7 +249,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/user/bookings', verifyJWTAuth, async (req: any, res) => {
+  app.get('/api/user/bookings', verifySupabaseAuth, async (req: any, res) => {
     try {
       const bookings = await storage.getUserBookings(req.user.id);
       res.json(bookings);
@@ -398,7 +270,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/artist-profile', verifyJWTAuth, async (req: any, res) => {
+  app.post('/api/artist-profile', verifySupabaseAuth, async (req: any, res) => {
     try {
       const profileData = insertArtistProfileSchema.parse({
         ...req.body,
@@ -423,7 +295,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/messages', verifyJWTAuth, async (req: any, res) => {
+  app.get('/api/messages', verifySupabaseAuth, async (req: any, res) => {
     try {
       const messages = await storage.getMessages(req.user.id);
       res.json(messages);
@@ -433,7 +305,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/messages', verifyJWTAuth, async (req: any, res) => {
+  app.post('/api/messages', verifySupabaseAuth, async (req: any, res) => {
     try {
       const messageData = insertMessageSchema.parse({
         ...req.body,

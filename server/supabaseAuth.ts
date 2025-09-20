@@ -1,69 +1,180 @@
-import { createClient } from '@supabase/supabase-js'
-import type { Request, Response, NextFunction } from 'express'
-import { storage } from './storage'
+import type { NextFunction, Request, Response } from 'express';
+import jwt, { type JwtHeader, type JwtPayload, type VerifyErrors } from 'jsonwebtoken';
+import jwksClient from 'jwks-rsa';
+import type { UpsertUser } from '@shared/schema';
+import { storage } from './storage';
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL
-const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY
+const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
+const SUPABASE_JWKS_URL = process.env.SUPABASE_JWKS_URL ??
+  (SUPABASE_URL ? `${SUPABASE_URL.replace(/\/?$/, '')}/auth/v1/keys` : undefined);
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables on server')
+if (!SUPABASE_JWKS_URL) {
+  throw new Error('Missing Supabase configuration. Set SUPABASE_URL and/or SUPABASE_JWKS_URL.');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+const jwks = jwksClient({
+  cache: true,
+  cacheMaxEntries: 5,
+  cacheMaxAge: 10 * 60 * 1000, // 10 minutes
+  rateLimit: true,
+  jwksUri: SUPABASE_JWKS_URL,
+});
 
-export const verifySupabaseAuth = async (req: any, res: Response, next: NextFunction) => {
-  const authHeader = req.headers.authorization
-  
-  console.log('Auth verification attempt:', {
-    hasAuthHeader: !!authHeader,
-    authHeaderStart: authHeader ? authHeader.substring(0, 20) + '...' : 'none',
-    url: req.url,
-    method: req.method
-  });
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    console.log('Auth failed: No valid authorization header');
-    return res.status(401).json({ message: 'Unauthorized - No token provided' })
-  }
+type VerifiedSupabaseClaims = JwtPayload & {
+  sub: string;
+  email?: string;
+  role?: string;
+  user_metadata?: Record<string, unknown>;
+  app_metadata?: Record<string, unknown>;
+};
 
-  const token = authHeader.replace('Bearer ', '')
+function getSigningKey(header: JwtHeader): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (!header.kid) {
+      reject(new Error('missing_kid'));
+      return;
+    }
 
-  try {
-    const { data: { user }, error } = await supabase.auth.getUser(token)
-    
-    console.log('Supabase auth result:', {
-      hasUser: !!user,
-      userId: user?.id,
-      userEmail: user?.email,
-      error: error?.message
+    jwks.getSigningKey(header.kid, (err, key) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+
+      const signingKey = key?.getPublicKey?.();
+      if (!signingKey) {
+        reject(new Error('missing_public_key'));
+        return;
+      }
+
+      resolve(signingKey);
     });
-    
-    if (error || !user) {
-      console.log('Auth failed: Invalid token or user not found', error);
-      return res.status(401).json({ message: 'Unauthorized - Invalid token' })
-    }
+  });
+}
 
-    // Sync user with our database
-    await storage.upsertUser({
-      id: user.id,
-      email: user.email || '',
-      firstName: user.user_metadata?.first_name || '',
-      lastName: user.user_metadata?.last_name || '',
-      profileImageUrl: user.user_metadata?.avatar_url || '',
-    })
+async function verifyJwt(token: string): Promise<VerifiedSupabaseClaims> {
+  const decoded = await new Promise<VerifiedSupabaseClaims>((resolve, reject) => {
+    jwt.verify(
+      token,
+      async (header, callback) => {
+        try {
+          const key = await getSigningKey(header);
+          callback(null, key);
+        } catch (err) {
+          callback(err as VerifyErrors);
+        }
+      },
+      {
+        algorithms: ['RS256'],
+      },
+      (error, payload) => {
+        if (error) {
+          reject(error);
+          return;
+        }
 
-    // Attach user to request
-    req.user = {
-      id: user.id,
-      email: user.email,
-      firstName: user.user_metadata?.first_name,
-      lastName: user.user_metadata?.last_name,
-      profileImageUrl: user.user_metadata?.avatar_url,
-    }
+        resolve(payload as VerifiedSupabaseClaims);
+      },
+    );
+  });
 
-    next()
-  } catch (error) {
-    console.error('Supabase auth error:', error)
-    return res.status(401).json({ message: 'Unauthorized - Auth verification failed' })
+  return decoded;
+}
+
+function mapJwtError(error: VerifyErrors | Error) {
+  switch (error.name) {
+    case 'TokenExpiredError':
+      return { status: 401, message: 'Unauthorized - Token expired', reason: 'token_expired' as const };
+    case 'JsonWebTokenError':
+      return { status: 401, message: 'Unauthorized - Invalid token signature', reason: 'invalid_signature' as const };
+    case 'NotBeforeError':
+      return { status: 401, message: 'Unauthorized - Token not yet active', reason: 'token_not_active' as const };
+    case 'JwksError':
+    case 'SigningKeyNotFoundError':
+      return { status: 401, message: 'Unauthorized - Unable to fetch signing keys', reason: 'jwks_fetch_error' as const };
+    default:
+      if (error.message === 'missing_kid' || error.message === 'missing_public_key') {
+        return { status: 401, message: 'Unauthorized - Invalid token header', reason: 'invalid_token_header' as const };
+      }
+
+      return { status: 401, message: 'Unauthorized - Auth verification failed', reason: 'auth_verification_failed' as const };
   }
 }
+
+export const verifySupabaseAuth = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const authHeader = req.headers.authorization ?? '';
+    const hasBearer = authHeader.startsWith('Bearer ');
+
+    if (!hasBearer) {
+      return res.status(401).json({ message: 'Unauthorized - Missing bearer token', reason: 'missing_header' });
+    }
+
+    const token = authHeader.slice('Bearer '.length).trim();
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized - Missing bearer token', reason: 'missing_header' });
+    }
+
+    const decoded = await verifyJwt(token);
+
+    if (!decoded?.sub) {
+      return res.status(401).json({ message: 'Unauthorized - Invalid token payload', reason: 'invalid_payload' });
+    }
+
+    // Keep a lightweight audit trail without exposing tokens
+    console.debug('Supabase auth verified', {
+      path: req.originalUrl,
+      method: req.method,
+      sub: decoded.sub,
+      expIn: decoded.exp ? decoded.exp - Math.floor(Date.now() / 1000) : undefined,
+    });
+
+    const userMetadata = (decoded.user_metadata ?? {}) as Record<string, unknown>;
+
+    const upsertPayload: UpsertUser = {
+      id: decoded.sub,
+      email: decoded.email ?? '',
+    };
+
+    if (typeof userMetadata.first_name === 'string') {
+      upsertPayload.firstName = userMetadata.first_name;
+    }
+
+    if (typeof userMetadata.last_name === 'string') {
+      upsertPayload.lastName = userMetadata.last_name;
+    }
+
+    if (typeof userMetadata.avatar_url === 'string') {
+      upsertPayload.profileImageUrl = userMetadata.avatar_url;
+    }
+
+    if (typeof decoded.role === 'string') {
+      upsertPayload.role = decoded.role;
+    }
+
+    await storage.upsertUser(upsertPayload);
+
+    (req as any).user = {
+      id: decoded.sub,
+      email: decoded.email,
+      role: decoded.role ?? 'authenticated',
+    };
+
+    (req as any).auth = {
+      sub: decoded.sub,
+      email: decoded.email,
+      exp: decoded.exp,
+      role: decoded.role,
+    };
+
+    return next();
+  } catch (error) {
+    const mapped = mapJwtError(error as VerifyErrors | Error);
+    console.warn('Supabase auth verification failed', {
+      path: req.originalUrl,
+      method: req.method,
+      reason: mapped.reason,
+    });
+    return res.status(mapped.status).json({ message: mapped.message, reason: mapped.reason });
+  }
+};

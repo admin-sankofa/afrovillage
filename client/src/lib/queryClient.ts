@@ -1,46 +1,87 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { supabase } from "./supabase";
 
-async function throwIfResNotOk(res: Response) {
-  if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+export class ApiError extends Error {
+  status: number;
+  reason?: string;
+  body?: unknown;
+
+  constructor(message: string, options: { status: number; reason?: string; body?: unknown }) {
+    super(message);
+    this.name = "ApiError";
+    this.status = options.status;
+    this.reason = options.reason;
+    this.body = options.body;
   }
 }
 
-async function getAuthHeaders(): Promise<Record<string, string>> {
+async function buildAuthHeaders(init: RequestInit): Promise<Headers> {
+  const headers = new Headers(init.headers ?? {});
+
   try {
-    const { data: { session } } = await supabase.auth.getSession()
-    
-    if (session?.access_token) {
-      return {
-        'Authorization': `Bearer ${session.access_token}`,
-        'Content-Type': 'application/json'
-      }
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
     }
-    
-    return { 'Content-Type': 'application/json' }
   } catch (error) {
-    console.warn('Failed to get auth session:', error)
-    return { 'Content-Type': 'application/json' }
+    console.warn('Failed to resolve Supabase session for apiFetch', error);
   }
+
+  const hasBody = Boolean(init.body);
+  if (hasBody && !(init.body instanceof FormData) && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  return headers;
+}
+
+async function assertResponseOk(res: Response) {
+  if (res.ok) {
+    return;
+  }
+
+  let raw = '';
+  let parsedBody: any;
+
+  try {
+    raw = await res.text();
+    parsedBody = raw ? JSON.parse(raw) : undefined;
+  } catch {
+    parsedBody = raw || undefined;
+  }
+
+  const message = parsedBody?.message ?? res.statusText ?? 'Request failed';
+  const reason = parsedBody?.reason;
+  throw new ApiError(`${res.status}: ${message}`, {
+    status: res.status,
+    reason,
+    body: parsedBody ?? raw,
+  });
+}
+
+export async function apiFetch(path: string, init: RequestInit = {}) {
+  const headers = await buildAuthHeaders(init);
+
+  const response = await fetch(path, {
+    ...init,
+    headers,
+    credentials: init.credentials ?? 'include',
+  });
+
+  await assertResponseOk(response);
+  return response;
 }
 
 export async function apiRequest(
   method: string,
   url: string,
-  data?: unknown | undefined,
+  data?: unknown,
 ): Promise<Response> {
-  const headers = await getAuthHeaders()
-  
-  const res = await fetch(url, {
+  return apiFetch(url, {
     method,
-    headers,
-    body: data ? JSON.stringify(data) : undefined,
+    body: data !== undefined ? JSON.stringify(data) : undefined,
   });
-
-  await throwIfResNotOk(res);
-  return res;
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
@@ -49,18 +90,21 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const headers = await getAuthHeaders()
-    
-    const res = await fetch(queryKey.join("/") as string, {
-      headers,
-    });
-
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
+    try {
+      const res = await apiFetch(queryKey.join("/") as string, {
+        method: 'GET',
+      });
+      return await res.json();
+    } catch (error) {
+      if (
+        unauthorizedBehavior === "returnNull" &&
+        error instanceof ApiError &&
+        error.status === 401
+      ) {
+        return null as T;
+      }
+      throw error;
     }
-
-    await throwIfResNotOk(res);
-    return await res.json();
   };
 
 export const queryClient = new QueryClient({

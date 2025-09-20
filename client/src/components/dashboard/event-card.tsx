@@ -3,7 +3,7 @@ import { type Event } from "@shared/schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { isUnauthorizedError } from "@/lib/authUtils";
+import { getUnauthorizedReason, isUnauthorizedError } from "@/lib/authUtils";
 
 interface EventCardProps {
   event: Event & { 
@@ -29,14 +29,14 @@ export default function EventCard({ event }: EventCardProps) {
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
+        const reason = getUnauthorizedReason(error);
         toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
+          title: reason === 'token_expired' ? 'Session abgelaufen' : 'Keine Berechtigung',
+          description: reason === 'token_expired'
+            ? 'Bitte melde dich erneut an, um Events zu buchen.'
+            : 'Diese Aktion erfordert eine aktive Anmeldung.',
+          variant: 'destructive',
         });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
         return;
       }
       toast({

@@ -16,8 +16,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       toast({
-        title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
+        title: "Anmeldung erforderlich",
+        description: "Bitte melde dich an, um auf den geschützten Bereich zuzugreifen.",
         variant: "destructive",
       });
       // User will be redirected to login form automatically by App.tsx routing

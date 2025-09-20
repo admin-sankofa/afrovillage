@@ -5,6 +5,7 @@ import {
   pgTable,
   timestamp,
   varchar,
+  uuid,
   text,
   integer,
   decimal,
@@ -30,7 +31,7 @@ export const sessions = pgTable(
 // User storage table.
 // (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
 export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid("id").primaryKey().defaultRandom(),
   email: varchar("email").unique(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
@@ -44,7 +45,7 @@ export const users = pgTable("users", {
 });
 
 export const events = pgTable("events", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid("id").primaryKey().defaultRandom(),
   title: varchar("title").notNull(),
   description: text("description"),
   type: varchar("type").notNull(), // workshop, retreat, festival, community
@@ -53,7 +54,7 @@ export const events = pgTable("events", {
   location: varchar("location"),
   capacity: integer("capacity"),
   price: decimal("price", { precision: 10, scale: 2 }),
-  organizerId: varchar("organizer_id").notNull().references(() => users.id),
+  organizerId: uuid("organizer_id").notNull().references(() => users.id),
   imageUrl: varchar("image_url"),
   tags: text("tags").array(),
   status: varchar("status").notNull().default("active"), // active, cancelled, completed
@@ -61,19 +62,19 @@ export const events = pgTable("events", {
 });
 
 export const eventRegistrations = pgTable("event_registrations", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  eventId: varchar("event_id").notNull().references(() => events.id),
-  userId: varchar("user_id").notNull().references(() => users.id),
+  id: uuid("id").primaryKey().defaultRandom(),
+  eventId: uuid("event_id").notNull().references(() => events.id),
+  userId: uuid("user_id").notNull().references(() => users.id),
   status: varchar("status").notNull().default("registered"), // registered, confirmed, cancelled
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const courses = pgTable("courses", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid("id").primaryKey().defaultRandom(),
   title: varchar("title").notNull(),
   description: text("description"),
   category: varchar("category").notNull(), // sustainability, culture, technology, arts
-  instructorId: varchar("instructor_id").notNull().references(() => users.id),
+  instructorId: uuid("instructor_id").notNull().references(() => users.id),
   duration: integer("duration"), // in hours
   level: varchar("level").notNull(), // beginner, intermediate, advanced
   price: decimal("price", { precision: 10, scale: 2 }),
@@ -84,9 +85,9 @@ export const courses = pgTable("courses", {
 });
 
 export const courseEnrollments = pgTable("course_enrollments", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  courseId: varchar("course_id").notNull().references(() => courses.id),
-  userId: varchar("user_id").notNull().references(() => users.id),
+  id: uuid("id").primaryKey().defaultRandom(),
+  courseId: uuid("course_id").notNull().references(() => courses.id),
+  userId: uuid("user_id").notNull().references(() => users.id),
   progress: integer("progress").default(0), // percentage
   completedLessons: text("completed_lessons").array().default(sql`ARRAY[]::text[]`),
   enrolledAt: timestamp("enrolled_at").defaultNow(),
@@ -94,7 +95,7 @@ export const courseEnrollments = pgTable("course_enrollments", {
 });
 
 export const projects = pgTable("projects", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid("id").primaryKey().defaultRandom(),
   title: varchar("title").notNull(),
   description: text("description"),
   category: varchar("category").notNull(), // infrastructure, cultural, educational, community
@@ -103,16 +104,16 @@ export const projects = pgTable("projects", {
   currency: varchar("currency").default("EUR"),
   deadline: date("deadline"),
   status: varchar("status").notNull().default("active"), // active, completed, cancelled
-  creatorId: varchar("creator_id").notNull().references(() => users.id),
+  creatorId: uuid("creator_id").notNull().references(() => users.id),
   imageUrl: varchar("image_url"),
   updates: jsonb("updates"), // array of project updates
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const donations = pgTable("donations", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  projectId: varchar("project_id").notNull().references(() => projects.id),
-  userId: varchar("user_id").references(() => users.id), // null for anonymous donations
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").notNull().references(() => projects.id),
+  userId: uuid("user_id").references(() => users.id), // null for anonymous donations
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   currency: varchar("currency").default("EUR"),
   message: text("message"),
@@ -122,8 +123,8 @@ export const donations = pgTable("donations", {
 });
 
 export const artistProfiles = pgTable("artist_profiles", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id),
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id),
   artistName: varchar("artist_name"),
   specialty: varchar("specialty"), // sculptor, musician, painter, textile, etc.
   bio: text("bio"),
@@ -135,9 +136,9 @@ export const artistProfiles = pgTable("artist_profiles", {
 });
 
 export const messages = pgTable("messages", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  senderId: varchar("sender_id").notNull().references(() => users.id),
-  recipientId: varchar("recipient_id").references(() => users.id), // null for community messages
+  id: uuid("id").primaryKey().defaultRandom(),
+  senderId: uuid("sender_id").notNull().references(() => users.id),
+  recipientId: uuid("recipient_id").references(() => users.id), // null for community messages
   content: text("content").notNull(),
   type: varchar("type").notNull().default("text"), // text, image, file
   isRead: boolean("is_read").default(false),
@@ -146,7 +147,7 @@ export const messages = pgTable("messages", {
 });
 
 export const accommodations = pgTable("accommodations", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid("id").primaryKey().defaultRandom(),
   name: varchar("name").notNull(),
   type: varchar("type").notNull(), // tiny_house, a_frame, yurt, mobile_home
   description: text("description"),
@@ -159,9 +160,9 @@ export const accommodations = pgTable("accommodations", {
 });
 
 export const bookings = pgTable("bookings", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  accommodationId: varchar("accommodation_id").notNull().references(() => accommodations.id),
-  userId: varchar("user_id").notNull().references(() => users.id),
+  id: uuid("id").primaryKey().defaultRandom(),
+  accommodationId: uuid("accommodation_id").notNull().references(() => accommodations.id),
+  userId: uuid("user_id").notNull().references(() => users.id),
   checkIn: date("check_in").notNull(),
   checkOut: date("check_out").notNull(),
   guests: integer("guests").notNull(),
@@ -173,7 +174,7 @@ export const bookings = pgTable("bookings", {
 });
 
 export const resources = pgTable("resources", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid("id").primaryKey().defaultRandom(),
   type: varchar("type").notNull(), // solar, water, food, internet
   name: varchar("name").notNull(),
   currentLevel: decimal("current_level", { precision: 5, scale: 2 }).notNull(),

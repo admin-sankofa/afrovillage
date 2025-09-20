@@ -1,19 +1,29 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const testEmail = process.env.TEST_AUTH_EMAIL!;
-const testPassword = process.env.TEST_AUTH_PASSWORD!;
+const supabaseUrl = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const testEmail = process.env.TEST_AUTH_EMAIL;
+const testPassword = process.env.TEST_AUTH_PASSWORD;
+
+if (!supabaseUrl || !supabaseServiceKey || !testEmail || !testPassword) {
+  console.warn('Skipping test user setup. Missing SUPABASE_URL/SERVICE_ROLE_KEY or test credentials.');
+}
 
 // Create admin client with service role key
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-});
+const supabaseAdmin = supabaseUrl && supabaseServiceKey
+  ? createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    })
+  : null;
 
 export async function ensureTestUser() {
+  if (!supabaseAdmin || !testEmail || !testPassword) {
+    return null;
+  }
+
   try {
     // Try to create test user (will fail if already exists)
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
