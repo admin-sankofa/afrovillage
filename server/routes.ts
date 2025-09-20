@@ -1,10 +1,23 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { verifySupabaseAuth } from "./supabaseAuth";
+import { verifySupabaseAuth, checkSupabaseKeys } from "./supabaseAuth";
 import { insertEventSchema, insertCourseSchema, insertProjectSchema, insertDonationSchema, insertBookingSchema, insertArtistProfileSchema, insertMessageSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  if (process.env.NODE_ENV !== 'production') {
+    app.get('/__auth/keys-check', async (_req, res) => {
+      try {
+        const result = await checkSupabaseKeys();
+        const status = result.ok ? 200 : result.status || 500;
+        res.status(status).json(result);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        res.status(500).json({ ok: false, status: 0, text: message });
+      }
+    });
+  }
+
   // Auth routes
   app.get('/api/auth/user', verifySupabaseAuth, async (req: any, res) => {
     try {

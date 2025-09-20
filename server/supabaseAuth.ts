@@ -4,12 +4,21 @@ import jwksClient from 'jwks-rsa';
 import type { UpsertUser } from '@shared/schema';
 import { storage } from './storage';
 
-const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
-const SUPABASE_JWKS_URL = process.env.SUPABASE_JWKS_URL ??
-  (SUPABASE_URL ? `${SUPABASE_URL.replace(/\/?$/, '')}/auth/v1/keys` : undefined);
+const rawSupabaseUrl = (process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? '').replace(/\/$/, '');
+const SUPABASE_URL = rawSupabaseUrl || undefined;
+const SUPABASE_JWKS_URL = (process.env.SUPABASE_JWKS_URL ?? (SUPABASE_URL ? `${SUPABASE_URL}/auth/v1/keys` : undefined))?.replace(/\/$/, '');
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_ANON_KEY;
+
+if (!SUPABASE_URL) {
+  throw new Error('Missing SUPABASE_URL environment variable.');
+}
 
 if (!SUPABASE_JWKS_URL) {
-  throw new Error('Missing Supabase configuration. Set SUPABASE_URL and/or SUPABASE_JWKS_URL.');
+  throw new Error('Missing SUPABASE_JWKS_URL environment variable.');
+}
+
+if (!SUPABASE_ANON_KEY) {
+  throw new Error('Missing SUPABASE_ANON_KEY environment variable.');
 }
 
 const jwks = jwksClient({
@@ -18,6 +27,10 @@ const jwks = jwksClient({
   cacheMaxAge: 10 * 60 * 1000, // 10 minutes
   rateLimit: true,
   jwksUri: SUPABASE_JWKS_URL,
+  timeout: 5000,
+  requestHeaders: {
+    apikey: SUPABASE_ANON_KEY,
+  },
 });
 
 type VerifiedSupabaseClaims = JwtPayload & {
@@ -101,24 +114,45 @@ function mapJwtError(error: VerifyErrors | Error) {
   }
 }
 
+const reasonHints: Record<string, string> = {
+  missing_header: 'Ensure the client sends Authorization: Bearer <token>.',
+  invalid_payload: 'Supabase token payload is missing required claims.',
+  token_expired: 'Supabase session expired; refresh the session.',
+  token_not_active: 'Token is not yet valid; check system clock drift.',
+  invalid_signature: 'Token signature rejected; confirm project keys and service URLs.',
+  jwks_fetch_error: 'Unable to fetch JWKS. Verify SUPABASE_JWKS_URL, anon key header, and network access.',
+  invalid_token_header: 'Token header missing kid/public key. Ensure a Supabase-issued JWT is used.',
+  auth_verification_failed: 'Unexpected verification failure; check server logs for details.',
+};
+
+function deny(res: Response, req: Request, reason: string, message: string) {
+  console.warn('Supabase auth denied', {
+    path: req.originalUrl,
+    method: req.method,
+    reason,
+    hint: reasonHints[reason],
+  });
+  return res.status(401).json({ message, reason });
+}
+
 export const verifySupabaseAuth = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization ?? '';
     const hasBearer = authHeader.startsWith('Bearer ');
 
     if (!hasBearer) {
-      return res.status(401).json({ message: 'Unauthorized - Missing bearer token', reason: 'missing_header' });
+      return deny(res, req, 'missing_header', 'Unauthorized - Missing bearer token');
     }
 
     const token = authHeader.slice('Bearer '.length).trim();
     if (!token) {
-      return res.status(401).json({ message: 'Unauthorized - Missing bearer token', reason: 'missing_header' });
+      return deny(res, req, 'missing_header', 'Unauthorized - Missing bearer token');
     }
 
     const decoded = await verifyJwt(token);
 
     if (!decoded?.sub) {
-      return res.status(401).json({ message: 'Unauthorized - Invalid token payload', reason: 'invalid_payload' });
+      return deny(res, req, 'invalid_payload', 'Unauthorized - Invalid token payload');
     }
 
     // Keep a lightweight audit trail without exposing tokens
@@ -174,7 +208,39 @@ export const verifySupabaseAuth = async (req: Request, res: Response, next: Next
       path: req.originalUrl,
       method: req.method,
       reason: mapped.reason,
+      hint: reasonHints[mapped.reason] ?? 'See server logs for details.',
     });
     return res.status(mapped.status).json({ message: mapped.message, reason: mapped.reason });
   }
+};
+
+export async function checkSupabaseKeys() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+
+  try {
+    const response = await fetch(SUPABASE_JWKS_URL, {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+      },
+      signal: controller.signal,
+    });
+
+    if (response.ok) {
+      return { ok: true, status: response.status } as const;
+    }
+
+    const text = await response.text();
+    return { ok: false, status: response.status, text } as const;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return { ok: false, status: 0, text: message } as const;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export const SUPABASE_CONFIG = {
+  url: SUPABASE_URL,
+  jwksUrl: SUPABASE_JWKS_URL,
 };
